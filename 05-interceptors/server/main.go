@@ -28,7 +28,7 @@ func (s *paymentServer) ProcessPayment(ctx context.Context, req *pb.ProcessPayme
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	listener, _ := net.Listen("tcp", ":50054")
+	listener, _ := net.Listen("tcp", ":50055")
 
 	// Inject the Interceptor Chain
 	// Order matters: Logging runs first (to catch auth rejections), Auth runs second.
@@ -41,7 +41,7 @@ func main() {
 
 	pb.RegisterPaymentServiceServer(grpcServer, &paymentServer{logger: logger})
 
-	logger.Info("server with interceptors starting on :50054")
+	logger.Info("server with interceptors starting on :50055")
 	if err := grpcServer.Serve(listener); err != nil {
 		logger.Error("server failed", slog.String("error", err.Error()))
 	}
