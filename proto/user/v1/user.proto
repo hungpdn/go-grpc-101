@@ -2,12 +2,18 @@ syntax = "proto3";
 
 package user.v1;
 
+import "google/api/annotations.proto";
+
 // Fully qualified Go package path for generated code
 option go_package = "github.com/hungpdn/go-grpc-101/pb/user/v1";
 
 service UserService {
   // GetUser fetches a user by their unique identifier.
-  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    // This tells the Gateway: Map GET /v1/users/{user_id} to this RPC
+    // It will automatically parse the {user_id} from the URL and put it into the GetUserRequest
+    option (google.api.http) = {get: "/v1/users/{user_id}"};
+  }
 }
 
 message GetUserRequest {

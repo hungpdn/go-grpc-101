@@ -1,4 +1,4 @@
-.PHONY: lint gen tidy run-server run-client test
+.PHONY: lint gen tidy test
 
 # Lint the protobuf files against industry standards
 lint:
@@ -10,12 +10,6 @@ gen:
 
 tidy:
 	go mod tidy
-
-run-server:
-	go run 01-unary-rpc/server/main.go
-
-run-client:
-	go run 01-unary-rpc/client/main.go
 
 test:
 	go test -v ./...
