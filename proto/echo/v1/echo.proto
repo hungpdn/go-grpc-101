@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package echo.v1;
+
+option go_package = "github.com/hungpdn/go-grpc-101/pb/echo/v1";
+
+service EchoService {
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string server_id = 1;
+}
