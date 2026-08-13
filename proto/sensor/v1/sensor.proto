@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package sensor.v1;
+
+option go_package = "github.com/your-org/go-grpc-101/gen/go/sensor/v1";
+
+service SensorService {
+  // 1. Server Streaming
+  rpc MonitorTemperature(MonitorTemperatureRequest) returns (stream MonitorTemperatureResponse);
+
+  // 2. Client Streaming
+  rpc UploadMetrics(stream UploadMetricsRequest) returns (UploadMetricsResponse);
+
+  // 3. Bi-directional Streaming
+  rpc LiveAlerts(stream LiveAlertsRequest) returns (stream LiveAlertsResponse);
+}
+
+// --- Messages cho MonitorTemperature ---
+message MonitorTemperatureRequest {
+  string sensor_id = 1;
+}
+
+message MonitorTemperatureResponse {
+  float temperature = 1;
+  string timestamp = 2;
+}
+
+// --- Messages cho UploadMetrics ---
+message UploadMetricsRequest {
+  string sensor_id = 1;
+  float value = 2;
+}
+
+message UploadMetricsResponse {
+  int32 total_received = 1;
+  string status = 2;
+}
+
+// --- Messages cho LiveAlerts ---
+message LiveAlertsRequest {
+  string sensor_id = 1;
+  float value = 2;
+}
+
+message LiveAlertsResponse {
+  string sensor_id = 1;
+  string message = 2;
+}
