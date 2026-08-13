@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "github.com/hungpdn/go-grpc-101/pb/payment/v1";
+
+service PaymentService {
+  rpc ProcessPayment(ProcessPaymentRequest) returns (ProcessPaymentResponse);
+}
+
+message ProcessPaymentRequest {
+  string transaction_id = 1;
+  double amount = 2;
+}
+
+message ProcessPaymentResponse {
+  string transaction_id = 1;
+  string status = 2;
+}
