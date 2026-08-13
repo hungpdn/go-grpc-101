@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package secure.v1;
+
+option go_package = "github.com/your-org/go-grpc-101/gen/go/secure/v1";
+
+service SecureService {
+  rpc GetSensitiveData(GetSensitiveDataRequest) returns (GetSensitiveDataResponse);
+}
+
+message GetSensitiveDataRequest {
+  string query = 1;
+}
+
+message GetSensitiveDataResponse {
+  string data = 1;
+}
