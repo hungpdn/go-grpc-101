@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package user.v1;
+
+// Fully qualified Go package path for generated code
+option go_package = "github.com/hungpdn/go-grpc-101/pb/user/v1";
+
+service UserService {
+  // GetUser fetches a user by their unique identifier.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserResponse {
+  string user_id = 1;
+  string name = 2;
+  string email = 3;
+}
