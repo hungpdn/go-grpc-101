@@ -71,8 +71,8 @@ go-grpc-101/
 │       └── main.go
 │
 ├── 05-interceptors/           # Topic 5: Middleware (Auth, Logging, Recovery)
-│   ├── interceptors/          # place to write reusable Middleware functions
-│   │   ├── auth.go
+│   ├── middleware/            # place to write reusable Middleware functions
+│   │   ├── auth.go            # Recovery (Panic handling) -> Logging/Tracing -> Authentication -> Validation
 │   │   └── logging.go
 │   ├── client/
 │   └── server/
