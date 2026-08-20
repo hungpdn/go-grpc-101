@@ -108,7 +108,11 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 12-rate-limiting/          # Topic 12: Rate Limiting (Token Bucket & Interceptors)
+├── 12-rate-limiting/          # Topic 12: Rate Limiting (Token Bucket & Interceptors)
+│   ├── client/
+│   └── server/
+│
+└── 13-keepalive-config/       # Topic 13: Keepalive & Connection Management
     ├── client/
     └── server/
 ```
