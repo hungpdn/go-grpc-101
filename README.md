@@ -42,13 +42,14 @@ go-grpc-101/
 ├── go.mod
 ├── go.sum
 │
-├── proto/                     # place to store all .proto files and generated Go code
-│   ├── v1/
-│   │   ├── user.proto
-│   │   ├── order.proto
-│   │   ├── user_grpc.pb.go
-│   │   └── user.pb.go
-│   └── buf.yaml               # (Optional) If using Buf CLI instead of protoc
+├── proto/                     # Protocol Buffer definitions (*.proto files)
+│   ├── user/
+│   ├── order/
+│   └── buf.yaml               # Buf configuration file
+│
+├── pb/                        # Generated Go source code from the .proto files
+│   ├── user/
+│   └── order/
 │
 ├── 01-unary-rpc/              # Topic 1: basic Unary RPC
 │   ├── client/
@@ -91,8 +92,6 @@ go-grpc-101/
 │       └── main.go
 │
 ├── 08-grpc-gateway/           # Topic 8: Convert gRPC to RESTful JSON API
-│   ├── proto/                 # Proto contains google.api.http annotations
-│   ├── gateway/               # HTTP Reverse Proxy server
 │   └── server/                # gRPC server
 │
 ├── 09-load-balancing/         # Topic 9: Client-side Load Balancing & Resolver
@@ -101,7 +100,7 @@ go-grpc-101/
 │
 ├── 10-unit-testing/           # Topic 10: Testing with `bufconn` (In-memory) & Mock  
 │   ├── service_test.go
-│   └── mock/
+│   └── servce.go
 │
 ├── 11-observability/          # Topic 11: Prometheus Metrics & OpenTelemetry Tracing
 │   ├── docker-compose.yml     # Running Prometheus, Jaeger
@@ -112,8 +111,11 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 13-keepalive-config/       # Topic 13: Keepalive & Connection Management
+├── 13-keepalive-config/       # Topic 13: Keepalive & Connection Management
+│   ├── client/
+│   └── server/
+│
+└── 14-payload-compression/    # Topic 14: Payload Compression (Gzip)
     ├── client/
     └── server/
 ```
-
