@@ -1,33 +1,37 @@
 # gRPC 101 with Go
 
-A practical introduction to gRPC using Go (Golang). This repository covers the basics from setting up your environment to implementing streaming and bidirectional communication.
+A comprehensive and practical guide to building gRPC applications in Go (Golang). 
+This repository covers everything from the absolute basics (Unary RPCs) to advanced production-ready patterns, including Interceptors, Security (mTLS), gRPC Gateway, Observability, and Rate Limiting.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have the following tools installed:
 
-- **Go**: Version 1.18 or higher.
-- **Protocol Buffer Compiler (`protoc`)**: Required to compile `.proto` files.
-  - Installation instructions: [Protobuf Installation](https://protobuf.dev/getting-started/)
-- **(Optional) buf**: A modern tool for working with Protocol Buffers. It simplifies workflows and validates schemas.
-  - Installation instructions: [buf Installation](https://buf.build/docs/installation)
+- **Go**: Version 1.20 or higher.
+- **buf**: A modern and fast tool for working with Protocol Buffers. This repository uses `buf` (instead of the traditional `protoc`) to manage, lint, and generate Go code.
+  - Installation: [buf Installation Guide](https://buf.build/docs/installation)
+- **Docker & Docker Compose** (Optional): Required only if you want to run the Observability example (Prometheus & Jaeger).
 
 ## 🛠️ Setup
 
-1. **Clone the repository** (if you haven't already).
-
-2. **Install Go dependencies**:
+1. **Clone the repository**:
    ```bash
-   go mod tidy
+   git clone <repo-url>
+   cd go-grpc-101
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   make tidy
    ```
 
 3. **Generate Go code from `.proto` files**:
    ```bash
-   make generate
+   make gen
    ```
-   *Note: This uses the `Makefile` to run `protoc` with the necessary plugins (`protoc-gen-go`, `protoc-gen-go-grpc`, `protoc-gen-grpc-gateway`, etc.).*
+   *(Note: This uses the `Makefile` to run `buf generate proto`, which reads `buf.gen.yaml` to generate the necessary Go gRPC stubs).*
 
 ## 📂 Project Structure
 
@@ -99,8 +103,12 @@ go-grpc-101/
 │   ├── service_test.go
 │   └── mock/
 │
-└── 11-observability/          # Topic 11: Prometheus Metrics & OpenTelemetry Tracing
-    ├── docker-compose.yml     # Running Prometheus, Jaeger
+├── 11-observability/          # Topic 11: Prometheus Metrics & OpenTelemetry Tracing
+│   ├── docker-compose.yml     # Running Prometheus, Jaeger
+│   ├── client/
+│   └── server/
+│
+└── 12-rate-limiting/          # Topic 12: Rate Limiting (Token Bucket & Interceptors)
     ├── client/
     └── server/
 ```
