@@ -14,6 +14,8 @@ service UserService {
     // It will automatically parse the {user_id} from the URL and put it into the GetUserRequest
     option (google.api.http) = {get: "/v1/users/{user_id}"};
   }
+
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
 }
 
 message GetUserRequest {
@@ -24,4 +26,13 @@ message GetUserResponse {
   string user_id = 1;
   string name = 2;
   string email = 3;
+}
+
+message UpdateUserRequest {
+  string user_id = 1;
+  string new_name = 2;
+}
+
+message UpdateUserResponse {
+  string status = 1;
 }
