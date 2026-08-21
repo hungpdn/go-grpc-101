@@ -119,6 +119,10 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 15-multiplexing/           # Topic 15: Multiplexing gRPC and HTTP on a single port (cmux)
+├── 15-multiplexing/           # Topic 15: Multiplexing gRPC and HTTP on a single port (cmux)
+│   └── server/
+│
+└── 16-circuit-breaking/       # Topic 16: Circuit Breaker Pattern (Cascading Failure Prevention)
+    ├── client/
     └── server/
 ```
