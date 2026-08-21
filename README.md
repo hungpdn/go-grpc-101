@@ -115,7 +115,10 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 14-payload-compression/    # Topic 14: Payload Compression (Gzip)
-    ├── client/
+├── 14-payload-compression/    # Topic 14: Payload Compression (Gzip)
+│   ├── client/
+│   └── server/
+│
+└── 15-multiplexing/           # Topic 15: Multiplexing gRPC and HTTP on a single port (cmux)
     └── server/
 ```
