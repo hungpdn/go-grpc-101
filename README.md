@@ -126,7 +126,12 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 17-retries/                # Topic 17: Transparent Retries & Hedging
-    ├── client/
-    └── server/
+├── 17-retries/                # Topic 17: Transparent Retries & Hedging
+│   ├── client/
+│   └── server/
+│
+└── 18-client-mocking/         # Topic 18: Client Mocking with gomock (Dependency Isolation)
+    ├── mocks/                 # Auto-generated mock clients from mockgen
+    ├── order.go               # Business logic (depends on UserServiceClient)
+    └── order_test.go          # Unit tests using the mock client
 ```
