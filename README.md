@@ -130,8 +130,36 @@ go-grpc-101/
 │   ├── client/
 │   └── server/
 │
-└── 18-client-mocking/         # Topic 18: Client Mocking with gomock (Dependency Isolation)
-    ├── mocks/                 # Auto-generated mock clients from mockgen
-    ├── order.go               # Business logic (depends on UserServiceClient)
-    └── order_test.go          # Unit tests using the mock client
+├── 18-client-mocking/         # Topic 18: Client Mocking with gomock (Dependency Isolation)
+│   ├── mocks/                 # Auto-generated mock clients from mockgen
+│   ├── order.go               # Business logic (depends on UserServiceClient)
+│   └── order_test.go          # Unit tests using the mock client
+│
+├── 19-docker-distroless/      # Topic 19: Docker Distroless Image
+│   ├── Dockerfile             # Dockerfile for distroless image
+│   └── README.md              # Detailed explanation of distroless image
+│ 
+├── 20-protobuf-validation/    # Topic 20: Protobuf Validation
+│   ├── server/                # gRPC server
+│   ├── client/                # gRPC client
+│   └── README.md              # Detailed explanation of protobuf validation
+│ 
+├── 21-custom-lb/              # Topic 21: Custom Load Balancing
+│   ├── client/                # gRPC client
+│   ├── server/                # gRPC server
+│   └── README.md              # Detailed explanation of custom load balancing
+│ 
+├── 22-xds/                    # Topic 22: xDS (Experimental)
+│   ├── client/                # gRPC client
+│   ├── server/                # gRPC server
+│   └── README.md              # Detailed explanation of xDS
+│ 
+├── 23-c10k-problem/           # Topic 23: C10k problem
+│   ├── optimized-sysctl.conf  # Optimized sysctl configuration for C10k problem
+│   └── README.md              # Detailed explanation of c10k problem
+│ 
+│ 
+│ 
+└── 101-final-project/         # Topic 25: Final Project
+    └── README.md              # Detailed explanation of final project
 ```

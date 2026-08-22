@@ -47,3 +47,22 @@ spec:
 ```
 
 *(Note: Some sysctls are considered "unsafe" by K8s and require cluster admin permission to enable on the Node kubelet).*
+
+## 🛡️ Go Runtime Tuning (Anti-OOM)
+When running high-load gRPC servers in Kubernetes, the OS network is not the only bottleneck. Spikes can cause sudden memory allocations, leading to Kubernetes **OOMKilled** events.
+
+Always configure the Go runtime in your Pod's environment variables:
+
+```yaml
+env:
+  # Instructs Go's Garbage Collector to strictly keep memory under this limit, 
+  # triggering aggressive GC cycles before the K8s OOM Killer terminates the pod.
+  # (Recommended: 90% of pod memory limit)
+  - name: GOMEMLIMIT
+    value: "900MiB" 
+  
+  # Optional: Tune GC frequency (Default is 100). 
+  # Lower values (e.g., 50) use more CPU but keep RAM usage tighter.
+  - name: GOGC
+    value: "100"
+```
