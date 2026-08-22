@@ -1,0 +1,15 @@
+{
+    "xds_servers": [
+        {
+            "server_uri": "localhost:15010",
+            "channel_creds": [
+                {
+                    "type": "insecure"
+                }
+            ]
+        }
+    ],
+    "node": {
+        "id": "grpc-client-node"
+    }
+}
