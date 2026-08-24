@@ -1,0 +1,39 @@
+syntax = "proto3";
+package order.v99;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+
+// Path to generate code for go
+option go_package = "github.com/hungpdn/go-grpc-101/pb/order/v99";
+
+service OrderService {
+  // RPC CreateOrder nhận request qua HTTP POST /v1/orders
+  // english: RPC CreateOrder receive request via HTTP POST /v1/orders
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option (google.api.http) = {
+      post: "/v1/orders"
+      body: "*"
+    };
+  }
+}
+
+message CreateOrderRequest {
+  // User ID must be non-empty
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Item ID must be non-empty
+  string item_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Quantity must be greater than or equal to 1
+  int32 quantity = 3 [(buf.validate.field).int32.gte = 1];
+}
+
+message CreateOrderResponse {
+  // Order ID
+  string order_id = 1;
+  // User Name
+  string user_name = 2;
+  // Handled by: Pod name that handles the request (to prove Load Balancing is working)
+  string handled_by = 3;
+}

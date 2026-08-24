@@ -1,4 +1,8 @@
-.PHONY: lint gen tidy test
+.PHONY: lint gen tidy test dep
+
+# Update the protobuf dependencies
+dep:
+	buf dep update proto
 
 # Lint the protobuf files against industry standards
 lint:

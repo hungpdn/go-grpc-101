@@ -160,6 +160,31 @@ go-grpc-101/
 │ 
 │ 
 │ 
-└── 101-final-project/         # Topic 25: Final Project
-    └── README.md              # Detailed explanation of final project
+└── 99-production-ready-cluster/    # Topic 99: Production-Ready Microservices on Minikube + K6
+   ├── README.md
+   │
+   ├── api-gateway/
+   │   └── main.go
+   │
+   ├── order-service/
+   │   └── main.go
+   │
+   ├── user-service/
+   │   └── main.go
+   │
+   ├── xds-control-plane/
+   │   └── main.go                  # Watches K8s Endpoints API, serves both order + user snapshots
+   │
+   ├── k8s/
+   │   ├── namespace.yaml
+   │   ├── user-service.yaml        # Deployment (2 replicas) + Service + ServiceMonitor
+   │   ├── order-service.yaml       # Deployment (2 replicas) + Service + ServiceMonitor
+   │   ├── xds-control-plane.yaml   # Deployment (1 replica) + ClusterRole (to read Endpoints)
+   │   ├── api-gateway.yaml         # Deployment (1 replica) + LoadBalancer Service
+   │   └── monitoring/
+   │       ├── prometheus-values.yaml
+   │       └── jaeger-values.yaml
+   │
+   └── loadtest/
+      └── k6-script.js
 ```

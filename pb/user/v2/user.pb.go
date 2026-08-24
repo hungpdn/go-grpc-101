@@ -26,11 +26,11 @@ type CreateUserRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Tên bắt buộc, độ dài từ 3 đến 50 ký tự
+	// Name must be at least 3 characters long and at most 50 characters long
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Bắt buộc phải là định dạng email chuẩn
+	// Email must be a valid email address
 	Email string `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	// Tuổi phải nằm trong khoảng từ 18 đến 100
+	// Age must be between 18 and 100
 	Age int32 `protobuf:"varint,3,opt,name=age,proto3" json:"age,omitempty"`
 }
 

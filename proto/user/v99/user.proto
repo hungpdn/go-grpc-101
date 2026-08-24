@@ -1,0 +1,26 @@
+syntax = "proto3";
+package user.v99;
+
+import "buf/validate/validate.proto";
+
+// Path to generate code for go
+option go_package = "github.com/hungpdn/go-grpc-101/pb/user/v99";
+
+service UserService {
+  // This service is only used for internal gRPC (xDS), not need to expose to HTTP Gateway
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message GetUserRequest {
+  // User ID must be non-empty
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetUserResponse {
+  // User ID
+  string user_id = 1;
+  // Name
+  string name = 2;
+  // Email
+  string email = 3;
+}
