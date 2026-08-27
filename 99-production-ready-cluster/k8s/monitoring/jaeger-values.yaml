@@ -1,0 +1,6 @@
+provisionDataStore:
+  cassandra: false
+allInOne:
+  enabled: true
+storage:
+  type: memory

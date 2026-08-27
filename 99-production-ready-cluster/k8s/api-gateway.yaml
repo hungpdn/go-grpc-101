@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: api-gateway:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: GOMEMLIMIT
+          value: "115MiB"
+        - name: GRPC_XDS_BOOTSTRAP_CONFIG
+          value: '{"xds_servers":[{"server_uri":"xds-control-plane:15010","channel_creds":[{"type":"insecure"}],"server_features":["xds_v3"]}],"node":{"id":"grpc-client-node"}}'
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+  selector:
+    app: api-gateway

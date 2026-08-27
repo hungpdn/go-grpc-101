@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: order-service
+        image: order-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 50068 # gRPC
+        - containerPort: 8083  # Metrics
+        env:
+        # Runtime Tuning: Force GC to clean up memory before hitting K8s RAM limit
+        - name: GOMEMLIMIT
+          value: "115MiB"
+        - name: GOGC
+          value: "100"
+        - name: GRPC_XDS_BOOTSTRAP_CONFIG
+          value: '{"xds_servers":[{"server_uri":"xds-control-plane:15010","channel_creds":[{"type":"insecure"}],"server_features":["xds_v3"]}],"node":{"id":"grpc-client-node"}}'
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi" # Hard limit K8s OOM Killer
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  ports:
+  - name: grpc
+    port: 50068
+    targetPort: 50068
+  selector:
+    app: order-service
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-service-monitor
+  labels:
+    release: prom # This label must match the release name of the Prometheus Helm Chart
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  endpoints:
+  - port: grpc
+    path: /metrics
+    interval: 10s
