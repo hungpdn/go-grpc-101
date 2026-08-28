@@ -11,6 +11,10 @@ spec:
     metadata:
       labels:
         app: user-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
       - name: user-service
@@ -19,9 +23,16 @@ spec:
         ports:
         - name: grpc
           containerPort: 50069
+        - name: metrics
+          containerPort: 8082
         env:
+        # Runtime Tuning: Force GC to clean up memory before hitting K8s RAM limit
         - name: GOMEMLIMIT
           value: "115MiB"
+        - name: GOGC
+          value: "100"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "jaeger.monitoring:4317"
         resources:
           requests:
             memory: "64Mi"
@@ -39,6 +50,9 @@ spec:
   - name: grpc
     port: 50069
     targetPort: 50069
+  - name: metrics
+    port: 8082
+    targetPort: 8082
   selector:
     app: user-service
 ---
@@ -53,6 +67,6 @@ spec:
     matchLabels:
       app: user-service
   endpoints:
-  - port: grpc
+  - port: metrics
     path: /metrics
     interval: 10s

@@ -4,3 +4,6 @@ prometheus:
     serviceMonitorSelector:
       matchLabels:
         release: prom
+grafana:
+  enabled: true
+  adminPassword: admin123

@@ -21,14 +21,18 @@ spec:
         image: order-service:latest
         imagePullPolicy: Never
         ports:
-        - containerPort: 50068 # gRPC
-        - containerPort: 8083  # Metrics
+        - name: grpc
+          containerPort: 50068 # gRPC
+        - name: metrics
+          containerPort: 8083  # Metrics
         env:
         # Runtime Tuning: Force GC to clean up memory before hitting K8s RAM limit
         - name: GOMEMLIMIT
           value: "115MiB"
         - name: GOGC
           value: "100"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "jaeger.monitoring:4317"
         - name: GRPC_XDS_BOOTSTRAP_CONFIG
           value: '{"xds_servers":[{"server_uri":"xds-control-plane:15010","channel_creds":[{"type":"insecure"}],"server_features":["xds_v3"]}],"node":{"id":"grpc-client-node"}}'
         resources:
@@ -48,6 +52,9 @@ spec:
   - name: grpc
     port: 50068
     targetPort: 50068
+  - name: metrics
+    port: 8083
+    targetPort: 8083
   selector:
     app: order-service
 ---
@@ -62,6 +69,6 @@ spec:
     matchLabels:
       app: order-service
   endpoints:
-  - port: grpc
+  - port: metrics
     path: /metrics
     interval: 10s
