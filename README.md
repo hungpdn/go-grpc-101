@@ -100,7 +100,7 @@ go-grpc-101/
 │
 ├── 10-unit-testing/           # Topic 10: Testing with `bufconn` (In-memory) & Mock  
 │   ├── service_test.go
-│   └── servce.go
+│   └── service.go
 │
 ├── 11-observability/          # Topic 11: Prometheus Metrics & OpenTelemetry Tracing
 │   ├── docker-compose.yml     # Running Prometheus, Jaeger
@@ -158,8 +158,11 @@ go-grpc-101/
 │   ├── optimized-sysctl.conf  # Optimized sysctl configuration for C10k problem
 │   └── README.md              # Detailed explanation of c10k problem
 │ 
-│ 
-│ 
+├── 26-graceful-shutdown/      # Topic 26: Graceful Shutdown & Drain Protection
+│   ├── client/
+│   ├── server/
+│   └── README.md              # Detailed explanation of Graceful Shutdown
+│
 └── 99-production-ready-cluster/    # Topic 99: Production-Ready Microservices on Minikube + K6
    ├── README.md
    │

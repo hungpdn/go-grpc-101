@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -22,9 +24,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
-	_ "google.golang.org/grpc/xds" // Enable xDS
+	_ "google.golang.org/grpc/xds"
 )
 
 func initTelemetry(serviceName string) func() {
@@ -62,7 +66,6 @@ func initTelemetry(serviceName string) func() {
 	}
 }
 
-// RateLimiterInterceptor protects the service from sudden traffic bursts
 func RateLimiterInterceptor(limiter *rate.Limiter) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if !limiter.Allow() {
@@ -80,12 +83,10 @@ type orderServer struct {
 }
 
 func (s *orderServer) CreateOrder(ctx context.Context, req *pbOrder.CreateOrderRequest) (*pbOrder.CreateOrderResponse, error) {
-	// 1. Validation (Topic 20)
 	if err := s.validator.Validate(req); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Validation failed: %v", err)
 	}
 
-	// 2. Call User Service via xDS (Context contains OTel trace)
 	userResp, err := s.userClient.GetUser(ctx, &pbUser.GetUserRequest{UserId: req.GetUserId()})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to fetch user: %v", err)
@@ -107,10 +108,11 @@ func main() {
 	defer shutdown()
 
 	// 2. Start Prometheus Metrics
+	metricsServer := &http.Server{Addr: ":8083"}
+	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
 		log.Println("Order Service metrics listening on :8083")
-		if err := http.ListenAndServe(":8083", nil); err != nil {
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Metrics server error: %v", err)
 		}
 	}()
@@ -119,7 +121,7 @@ func main() {
 	userConn, err := grpc.NewClient(
 		"xds:///user-service",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // Forward OTel Tracing
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 	if err != nil {
 		log.Fatalf("Failed to connect to user service: %v", err)
@@ -127,10 +129,10 @@ func main() {
 	defer userConn.Close()
 	userClient := pbUser.NewUserServiceClient(userConn)
 
-	// 4. Rate Limiter: 500 RPS per pod with burst of 1000
+	// 4. Rate Limiter
 	limiter := rate.NewLimiter(rate.Limit(500), 1000)
 
-	// 5. Start gRPC Server
+	// 5. Start gRPC Server with Health Check & Interceptors
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle: 5 * time.Minute,
@@ -140,6 +142,10 @@ func main() {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(RateLimiterInterceptor(limiter)),
 	)
+
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	pbOrder.RegisterOrderServiceServer(grpcServer, &orderServer{
 		userClient: userClient,
@@ -151,8 +157,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	log.Printf("Order Service gRPC listening on :50068 (Pod: %s)", hostname)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+
+	go func() {
+		log.Printf("Order Service gRPC listening on :50068 (Pod: %s)", hostname)
+		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+			log.Fatalf("Failed to serve: %v", err)
+		}
+	}()
+
+	// 6. Graceful Shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Order Service shutting down gracefully...")
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+	ctxShutdown, cancelMetrics := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancelMetrics()
+	_ = metricsServer.Shutdown(ctxShutdown)
+
+	stopped := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+		log.Println("Order Service gRPC connections drained cleanly.")
+	case <-time.After(10 * time.Second):
+		log.Println("Order Service drain timeout exceeded, forcing stop...")
+		grpcServer.Stop()
 	}
 }

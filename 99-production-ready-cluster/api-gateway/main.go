@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -60,17 +62,19 @@ func initTelemetry(serviceName string) func() {
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// 1. Initialize OpenTelemetry Tracing
-	shutdown := initTelemetry("api-gateway")
-	defer shutdown()
+	shutdownTelemetry := initTelemetry("api-gateway")
+	defer shutdownTelemetry()
 
 	// 2. Start Prometheus Metrics Server on :8081
+	metricsServer := &http.Server{Addr: ":8081"}
+	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
 		log.Println("API Gateway metrics listening on :8081")
-		if err := http.ListenAndServe(":8081", nil); err != nil {
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Metrics server error: %v", err)
 		}
 	}()
@@ -79,7 +83,7 @@ func main() {
 	cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
 		Name:        "OrderServiceCB",
 		MaxRequests: 100,
-		Timeout:     5 * time.Second, // Fixed 5s timeout
+		Timeout:     5 * time.Second,
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
 			return counts.ConsecutiveFailures > 5
 		},
@@ -92,7 +96,7 @@ func main() {
 	conn, err := grpc.NewClient(
 		"xds:///order-service",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // Trace propagation
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 			_, cbErr := cb.Execute(func() (interface{}, error) {
 				return nil, invoker(ctx, method, req, reply, cc, opts...)
@@ -115,31 +119,55 @@ func main() {
 	httpL := m.Match(cmux.Any())
 
 	// 6. Start HTTP Server (gRPC-Gateway)
+	mux := runtime.NewServeMux()
+	if err := pbOrder.RegisterOrderServiceHandler(ctx, mux, conn); err != nil {
+		log.Fatalf("Failed to register gateway: %v", err)
+	}
+	httpServer := &http.Server{Handler: mux}
+
 	go func() {
-		mux := runtime.NewServeMux()
-		if err := pbOrder.RegisterOrderServiceHandler(ctx, mux, conn); err != nil {
-			log.Fatalf("Failed to register gateway: %v", err)
-		}
 		log.Println("HTTP Gateway starting...")
-		if err := http.Serve(httpL, mux); err != nil {
+		if err := httpServer.Serve(httpL); err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP gateway closed: %v", err)
 		}
 	}()
 
 	// 7. Start gRPC Server (Fallback for native gRPC clients)
+	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	)
 	go func() {
-		grpcServer := grpc.NewServer(
-			grpc.StatsHandler(otelgrpc.NewServerHandler()),
-		)
 		log.Println("gRPC Server starting...")
-		if err := grpcServer.Serve(grpcL); err != nil {
+		if err := grpcServer.Serve(grpcL); err != nil && err != grpc.ErrServerStopped {
 			log.Printf("gRPC server closed: %v", err)
 		}
 	}()
 
-	// 8. Serve cmux
-	log.Println("API Gateway cmux listening on :8080")
-	if err := m.Serve(); err != nil {
-		log.Fatalf("cmux server error: %v", err)
-	}
+	// 8. Serve cmux in background
+	go func() {
+		log.Println("API Gateway cmux listening on :8080")
+		if err := m.Serve(); err != nil && err != cmux.ErrListenerClosed && err != net.ErrClosed {
+			log.Printf("cmux server error: %v", err)
+		}
+	}()
+
+	// 9. Handle Graceful Shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("API Gateway shutting down gracefully...")
+
+	// Drain HTTP and Metrics servers
+	ctxShutdown, cancelShutdown := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancelShutdown()
+
+	_ = httpServer.Shutdown(ctxShutdown)
+	_ = metricsServer.Shutdown(ctxShutdown)
+
+	// Close cmux listener and graceful stop grpc
+	m.Close()
+	grpcServer.GracefulStop()
+
+	log.Println("API Gateway stopped cleanly.")
 }

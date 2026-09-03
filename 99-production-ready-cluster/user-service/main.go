@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	pb "github.com/hungpdn/go-grpc-101/pb/user/v99"
@@ -17,6 +19,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -76,15 +80,16 @@ func main() {
 	defer shutdown()
 
 	// 2. Start Prometheus Metrics Server
+	metricsServer := &http.Server{Addr: ":8082"}
+	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
 		log.Println("User Service metrics listening on :8082")
-		if err := http.ListenAndServe(":8082", nil); err != nil {
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("Metrics server error: %v", err)
 		}
 	}()
 
-	// 3. Configure gRPC Server with OTel and Keepalive
+	// 3. Configure gRPC Server with OTel, Keepalive, and Health Check
 	kaParams := keepalive.ServerParameters{
 		MaxConnectionIdle: 5 * time.Minute,
 		Time:              2 * time.Hour,
@@ -93,8 +98,12 @@ func main() {
 
 	grpcServer := grpc.NewServer(
 		grpc.KeepaliveParams(kaParams),
-		grpc.StatsHandler(otelgrpc.NewServerHandler()), // OTel Tracing
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
+
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	pb.RegisterUserServiceServer(grpcServer, &userServer{hostname: hostname})
 
@@ -103,8 +112,39 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	log.Printf("User Service gRPC listening on :50069 (Pod: %s)", hostname)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+	// 4. Run gRPC Server in background
+	go func() {
+		log.Printf("User Service gRPC listening on :50069 (Pod: %s)", hostname)
+		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+			log.Fatalf("Failed to serve: %v", err)
+		}
+	}()
+
+	// 5. Graceful Shutdown with Signal Trapping & Timeout Guard
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("User Service shutting down gracefully...")
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+	// Close metrics server
+	ctxShutdown, cancelMetrics := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancelMetrics()
+	_ = metricsServer.Shutdown(ctxShutdown)
+
+	// Drain active gRPC connections
+	stopped := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+		log.Println("User Service gRPC connections drained cleanly.")
+	case <-time.After(10 * time.Second):
+		log.Println("User Service drain timeout exceeded, forcing stop...")
+		grpcServer.Stop()
 	}
 }
