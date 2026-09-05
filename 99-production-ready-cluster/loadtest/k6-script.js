@@ -15,7 +15,7 @@ export const options = {
 };
 
 export default function () {
-    const url = 'http://localhost:30080/v1/orders';
+    const url = 'http://127.0.0.1/v1/orders';
 
     const payload = JSON.stringify({
         user_id: `usr_${__VU}`,
