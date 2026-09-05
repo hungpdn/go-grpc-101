@@ -1,7 +1,7 @@
 # gRPC 101 with Go
 
 A comprehensive and practical guide to building gRPC applications in Go (Golang). 
-This repository covers everything from the absolute basics (Unary RPCs) to advanced production-ready patterns, including Interceptors, Security (mTLS), gRPC Gateway, Observability, and Rate Limiting.
+This repository covers everything from the absolute basics (Unary RPCs) to advanced production-ready patterns, including Interceptors, Security (mTLS), gRPC Gateway, Observability, Rate Limiting and Production-Ready Cluster on Minikube with Kubernetes.
 
 ## 🚀 Getting Started
 
@@ -13,6 +13,10 @@ Before you begin, ensure you have the following tools installed:
 - **buf**: A modern and fast tool for working with Protocol Buffers. This repository uses `buf` (instead of the traditional `protoc`) to manage, lint, and generate Go code.
   - Installation: [buf Installation Guide](https://buf.build/docs/installation)
 - **Docker & Docker Compose** (Optional): Required only if you want to run the Observability example (Prometheus & Jaeger).
+- **kubectl** (Optional): Required only if you want to run the Production-Ready Cluster example.
+- **helm** (Optional): Required only if you want to run the Production-Ready Cluster example.
+- **minikube** (Optional): Required only if you want to run the Production-Ready Cluster example.
+- **k6** (Optional): Required only if you want to run the Production-Ready Cluster example.
 
 ## 🛠️ Setup
 
@@ -179,11 +183,15 @@ go-grpc-101/
    │   └── main.go                  # Watches K8s Endpoints API, serves both order + user snapshots
    │
    ├── k8s/
-   │   ├── namespace.yaml
-   │   ├── user-service.yaml        # Deployment (2 replicas) + Service + ServiceMonitor
-   │   ├── order-service.yaml       # Deployment (2 replicas) + Service + ServiceMonitor
-   │   ├── xds-control-plane.yaml   # Deployment (1 replica) + ClusterRole (to read Endpoints)
-   │   ├── api-gateway.yaml         # Deployment (1 replica) + LoadBalancer Service
+   │   ├── namespace.yaml              # Monitoring namespace
+   │   ├── xds-bootstrap-config.yaml   # Shared xDS bootstrap config (mounted as volume)
+   │   ├── xds-rbac.yaml               # ServiceAccount + ClusterRole for xDS to read Endpoints
+   │   ├── xds-control-plane.yaml      # Deployment (1 replica)
+   │   ├── user-service.yaml           # Deployment (1 replica) + Service + ServiceMonitor
+   │   ├── order-service.yaml          # Deployment (1 replica) + Service + ServiceMonitor
+   │   ├── api-gateway.yaml            # Deployment (1 replica) + NodePort Service + ServiceMonitor
+   │   ├── ingress.yaml                # Nginx Ingress (api.grpc-cluster.local → api-gateway)
+   │   ├── network-policy.yaml         # Zero-Trust: strict service-to-service traffic rules
    │   └── monitoring/
    │       ├── prometheus-values.yaml
    │       └── jaeger-values.yaml

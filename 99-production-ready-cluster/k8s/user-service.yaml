@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: user-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: user-service
@@ -16,6 +16,18 @@ spec:
         prometheus.io/port: "8082"
         prometheus.io/path: "/metrics"
     spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["user-service"]
+              topologyKey: "kubernetes.io/hostname"
       containers:
       - name: user-service
         image: user-service:latest
@@ -25,14 +37,11 @@ spec:
           containerPort: 50069
         - name: metrics
           containerPort: 8082
-        env:
-        # Runtime Tuning: Force GC to clean up memory before hitting K8s RAM limit
-        - name: GOMEMLIMIT
-          value: "115MiB"
-        - name: GOGC
-          value: "100"
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: "jaeger.monitoring:4317"
+        envFrom:
+          - configMapRef:
+              name: user-service-configmap
+          - secretRef:
+              name: user-service-secret
         resources:
           requests:
             memory: "64Mi"
@@ -40,11 +49,37 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "500m"
+        readinessProbe:
+          grpc:
+            port: 50069
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          grpc:
+            port: 50069
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: user-service
+  labels:
+    app: user-service
 spec:
   ports:
   - name: grpc
@@ -70,3 +105,52 @@ spec:
   - port: metrics
     path: /metrics
     interval: 10s
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  minReplicas: 1
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: user-service-secret
+type: Opaque
+data:
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-configmap
+data:
+  APP_ENV: dev
+  LOG_LEVEL: info
+  GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
+  GRPC_GO_LOG_SEVERITY_LEVEL: "info"
+  GOMEMLIMIT: "115MiB"
+  GOGC: "100"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger.monitoring:4317"  
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service

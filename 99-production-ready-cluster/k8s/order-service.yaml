@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: order-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: order-service
@@ -16,6 +16,18 @@ spec:
         prometheus.io/port: "8083"
         prometheus.io/path: "/metrics"
     spec:
+      terminationGracePeriodSeconds: 30
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["order-service"]
+              topologyKey: "kubernetes.io/hostname"
       containers:
       - name: order-service
         image: order-service:latest
@@ -25,28 +37,57 @@ spec:
           containerPort: 50068 # gRPC
         - name: metrics
           containerPort: 8083  # Metrics
-        env:
-        # Runtime Tuning: Force GC to clean up memory before hitting K8s RAM limit
-        - name: GOMEMLIMIT
-          value: "115MiB"
-        - name: GOGC
-          value: "100"
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: "jaeger.monitoring:4317"
-        - name: GRPC_XDS_BOOTSTRAP_CONFIG
-          value: '{"xds_servers":[{"server_uri":"xds-control-plane:15010","channel_creds":[{"type":"insecure"}],"server_features":["xds_v3"]}],"node":{"id":"grpc-client-node"}}'
+        envFrom:
+          - configMapRef:
+              name: order-service-configmap
+          - secretRef:
+              name: order-service-secret
         resources:
           requests:
             memory: "64Mi"
             cpu: "100m"
           limits:
-            memory: "128Mi" # Hard limit K8s OOM Killer
+            memory: "128Mi"
             cpu: "500m"
+        volumeMounts:
+        - name: xds-config-volume
+          mountPath: /etc/xds
+          readOnly: true
+        readinessProbe:
+          grpc:
+            port: 50068
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          grpc:
+            port: 50068
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+      volumes:
+      - name: xds-config-volume
+        configMap:
+          name: xds-bootstrap-config
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: order-service
+  labels:
+    app: order-service
 spec:
   ports:
   - name: grpc
@@ -63,7 +104,7 @@ kind: ServiceMonitor
 metadata:
   name: order-service-monitor
   labels:
-    release: prom # This label must match the release name of the Prometheus Helm Chart
+    release: prom
 spec:
   selector:
     matchLabels:
@@ -72,3 +113,53 @@ spec:
   - port: metrics
     path: /metrics
     interval: 10s
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 1
+  maxReplicas: 6
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: order-service-secret
+type: Opaque
+data:
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-configmap
+data:
+  APP_ENV: dev
+  LOG_LEVEL: info
+  GRPC_GO_LOG_VERBOSITY_LEVEL: "99"
+  GRPC_GO_LOG_SEVERITY_LEVEL: "info"
+  GOMEMLIMIT: "115MiB"
+  GOGC: "100"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger.monitoring:4317"
+  GRPC_XDS_BOOTSTRAP: "/etc/xds/bootstrap.json"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: order-service

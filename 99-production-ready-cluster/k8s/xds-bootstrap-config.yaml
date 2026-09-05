@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: xds-bootstrap-config
+data:
+  bootstrap.json: |
+    {
+      "xds_servers": [
+        {
+          "server_uri": "xds-control-plane:15010",
+          "channel_creds": [
+            {
+              "type": "insecure"
+            }
+          ],
+          "server_features": ["xds_v3"]
+        }
+      ],
+      "node": {
+        "id": "grpc-client-node"
+      }
+    }

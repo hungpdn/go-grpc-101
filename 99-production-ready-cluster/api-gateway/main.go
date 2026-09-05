@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -123,6 +124,10 @@ func main() {
 	if err := pbOrder.RegisterOrderServiceHandler(ctx, mux, conn); err != nil {
 		log.Fatalf("Failed to register gateway: %v", err)
 	}
+	mux.HandlePath("GET", "/ping", func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "pong")
+	})
 	httpServer := &http.Server{Handler: mux}
 
 	go func() {
